@@ -78,8 +78,9 @@ class SpeechTokenizer(nn.Module):
     
     
     def forward(self, 
-                x: torch.tensor, 
-                n_q: int=None, 
+                x: torch.tensor,
+                sample_rate: int=None,
+                n_quantizers: int=None,
                 layers: list=[0]):
         '''
         
@@ -102,13 +103,18 @@ class SpeechTokenizer(nn.Module):
             Output of RVQ's first layer. Shape: (batch, timesteps, dimension)
 
         '''
-        n_q = n_q if n_q else self.n_q
+        assert(sample_rate == self.sample_rate)
+        n_q = n_quantizers if n_quantizers else self.n_q
         e = self.encoder(x)
         quantized, codes, commit_loss, quantized_list = self.quantizer(e, n_q=n_q, layers=layers)
         feature = rearrange(quantized_list[0], 'b d t -> b t d')
         feature = self.transform(feature)       
         o = self.decoder(quantized)
-        return o, commit_loss, feature
+        return {
+            "audio": o,
+            "commit_loss": commit_loss,
+            "z": feature
+            }
     
     def forward_feature(self, 
                         x: torch.tensor, 
